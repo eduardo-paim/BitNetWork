@@ -1,0 +1,49 @@
+name: build
+on: 
+
+  workflow_dispatch:
+#  push:
+#   branches: 
+#      - master
+#    paths:
+#     - "**/*.go"
+#     - "go.mod"
+#     - "go.sum"
+#     - ".github/workflows/*.yml"
+  create:
+    tags:
+      - "r*"
+
+env:
+  GO111MODULE: on
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    name: build testing
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set tag name
+        run: echo "CURRENT_TAG=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+      
+      - name: Set up Golang
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.16
+          
+      - name: Build
+        run: |
+          go mod tidy
+          go build -o btsniffer -trimpath -ldflags "-s -w -buildid="
+          zip btsniffer-linux.zip btsniffer
+
+      - name: Release binaries
+        env: 
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$CURRENT_TAG" -t "BTSNIFFER" -n "Latest linux version $CURRENT_TAG" *.zip
